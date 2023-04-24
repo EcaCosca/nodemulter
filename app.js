@@ -1,44 +1,65 @@
-const express = require('express');
+import express from 'express';
+import cors from 'cors';
+import upload from './utils/fileUploader.js';
+import ejs from "ejs";
+
 const app = express();
-const path = require('path');
+const publicFolder = "./public";
 
-const multer = require('multer')
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        console.log(file)
-        cb(null, 'images')
-    },
-    filename: (req, file, cb) => {
-        console.log(file)
-        cb(null, Date.now() + path.extname(file.originalname))
-    }
-})
+app.use(cors());
+app.use(express.json());
+app.use(express.static(publicFolder));
 
-const upload = multer({storage: storage})
 
-app.set("view engine", "ejs")
 
-app.get('/', (req, res) => {
-    res.render("index")
-})
+app.get('/upload-profile-picture', (req, res) => {
+    res.sendFile('upload_profile_picture.html', { root: publicFolder })
+});
 
-app.post('/upload-profile-pic', upload.single('profile_pic'), (req, res) => {
-    console.log("POST IS WORKING");
-    
-    console.log(req.file)
-    
+app.post('/upload-profile-picture', upload.single('profile_pic'), (req, res, next) => {
     const { file, fileValidationError } = req;
     if (fileValidationError) {
         return res.status(500).send(fileValidationError);
     }
-    
+
     if (!file) {
         return res.status(400).send('Please upload a file');
     }
-    
-    // res.send("Image uploaded")
-    res.send(`<div>You have uploaded this image: <br/> <img src="http://localhost:3008/images/${req.file.filename}" width="500" /></div>`);
+
+    res.send(`<div>You have uploaded this image: <br/> <img src="http://localhost:3000/uploads/${req.file.filename}" width="500" /></div>`);
 })
 
-app.listen(3008, ()=>{console.log("Up and running");})
+
+app.get('/upload-cat-pics', (req, res) => {
+    res.sendFile('upload_cat_pictures.html', { root: publicFolder })
+});
+
+
+app.post('/upload-cat-pics', upload.array('cat_pics'), (req, res, next) => {
+    const { files, fileValidationError } = req;
+    if (fileValidationError) {
+        return res.status(500).send(fileValidationError);
+    }
+
+    if (!files) {
+        return res.status(400).send('Please upload a file');
+    }
+
+
+    let html = ejs.render(`
+        <h1>You have uploaded this images:</h1>
+        <ul>
+            <% for (let i = 0; i < pictures.length; i++) { %>
+                <li> 
+                    <img src="http://localhost:3000/uploads/<%= pictures[i].filename %>" width="500" />
+                </li>
+            <% } %>
+        </ul>`,
+        { pictures: req.files }
+    );
+
+    res.send(html);
+})
+
+app.listen(3000, () => console.log('Server running on port 3000'));
